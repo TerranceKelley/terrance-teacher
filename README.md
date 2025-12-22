@@ -42,3 +42,60 @@ Terrance Teacher is built to:
 ---
 
 ## Architecture (v1)
+CLI
+↓
+Teacher Orchestrator
+↓
+LLM Adapter (Ollama / OpenAI)
+↓
+Lesson + Quiz + Task
+↓
+Grading Rubric
+↓
+Memory Store (SQLite)
+
+---
+
+## Technologies
+
+- Python
+- Typer (CLI)
+- Pydantic (schemas)
+- SQLite (learner memory)
+- Ollama (local LLM inference)
+- Rich (console output)
+
+---
+
+## Initial Curriculum
+
+- Tokens & context windows
+- Temperature, determinism, and sampling
+- Prompt architecture & guardrails
+- Retrieval-Augmented Generation (RAG)
+- Hallucination causes and mitigation
+- Agent loops and planning strategies
+
+---
+
+## Roadmap
+
+- Multi-agent teaching system
+- Code evaluation and critique
+- Curriculum graph with prerequisites
+- Cloud deployment (AWS)
+- Cost-aware model selection
+- Certification-aligned learning paths
+
+---
+
+## Status
+
+🚧 Active development  
+This project evolves alongside the author’s transition into AI engineering and platform leadership.
+
+---
+
+## License
+
+MIT
