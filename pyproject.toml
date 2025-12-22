@@ -1,0 +1,13 @@
+[project]
+name = "terrance-teacher"
+version = "0.1.0"
+dependencies = [
+  "typer",
+  "rich",
+  "pydantic",
+  "python-dotenv",
+  "requests"
+]
+
+[project.scripts]
+teach = "terrance_teacher.cli:app"
