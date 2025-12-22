@@ -1,4 +1,4 @@
-# Terrance Teacher
+x# Terrance Teacher
 
 Terrance Teacher is an **agentic AI-powered personal teacher** designed to train experienced DevOps and platform engineers in **LLM engineering, agentic AI systems, and AI infrastructure**.
 

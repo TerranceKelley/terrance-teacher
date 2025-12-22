@@ -1,0 +1,78 @@
+# .cursorrules — Terrance Teacher
+# Goal: Keep changes small, deterministic, and aligned with the v1 architecture.
+
+## Project intent
+Terrance Teacher is a local-first, CLI-driven “AI teacher” that generates lessons, asks questions, assigns tasks,
+grades answers, and stores progress. Start simple and evolve iteratively.
+
+## Non-negotiables
+- Do NOT redesign the architecture.
+- Do NOT introduce new frameworks (FastAPI, Django, LangChain, etc.) unless explicitly requested.
+- Do NOT rename modules, packages, or commands without asking.
+- Prefer boring, readable Python over clever patterns.
+
+## Tech choices (v1)
+- Language: Python 3.11+
+- CLI: Typer
+- Output formatting: Rich (optional but ok)
+- Schemas: Pydantic
+- Memory: SQLite (local file in /data or similar)
+- LLM: Ollama first; OpenAI adapter later (behind an interface)
+
+## Repository structure (must keep)
+- src/terrance_teacher/cli.py
+- src/terrance_teacher/core/orchestrator.py
+- src/terrance_teacher/core/models.py
+- src/terrance_teacher/llm/* (adapter interface + implementations)
+- src/terrance_teacher/memory/* (sqlite + repo layer)
+- tests/*
+
+If a change requires new files, add them ONLY under the directories above.
+
+## Coding standards
+- Keep functions small and testable.
+- Prefer synchronous code (no async) unless required.
+- Add type hints for public functions/methods.
+- Raise clear exceptions; don’t swallow errors silently.
+- Use dataclasses only if helpful; prefer Pydantic for structured LLM outputs.
+
+## Lesson generation contract (v1)
+TeacherOrchestrator.generate_lesson(topic: str) returns a Lesson object:
+- topic: str
+- explanation: str
+- example: str
+- question: str
+- task: str
+
+Do not change this contract without explicit instruction.
+
+## LLM adapter contract (when added)
+Create an interface LLMClient with one method:
+- generate(prompt: str) -> str
+
+Ollama implementation must call local Ollama HTTP API.
+OpenAI implementation is optional and must be isolated behind the interface.
+
+## Memory contract (when added)
+- Store attempts and feedback in SQLite.
+- Keep schema minimal at first.
+- Do not introduce external DBs.
+
+## How to respond when coding
+When asked to implement something:
+1) Show the minimal file changes required.
+2) Provide code that runs with `pip install -e .` and `teach <topic>`.
+3) Avoid “extra nice-to-haves” unless requested.
+
+## What NOT to do
+- Do not add CI, docker, k8s, or cloud deployment yet.
+- Do not add multi-agent orchestration yet.
+- Do not add vector DB / RAG yet.
+- Do not add complicated configuration systems.
+
+## Default assumptions
+- Repo is editable install (`pip install -e .`)
+- CLI entrypoint is `teach` from pyproject.toml scripts
+- Local dev is macOS/Linux
+
+# End
