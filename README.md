@@ -42,17 +42,20 @@ Terrance Teacher is built to:
 ---
 
 ## Architecture (v1)
+
+```text
 CLI
-↓
+  ↓
 Teacher Orchestrator
-↓
+  ↓
 LLM Adapter (Ollama / OpenAI)
-↓
+  ↓
 Lesson + Quiz + Task
-↓
+  ↓
 Grading Rubric
-↓
+  ↓
 Memory Store (SQLite)
+```
 
 ---
 
