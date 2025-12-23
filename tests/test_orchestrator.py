@@ -1,3 +1,4 @@
+from unittest.mock import Mock
 from terrance_teacher.core.orchestrator import TeacherOrchestrator
 
 
@@ -43,3 +44,58 @@ def test_grade_answer_unknown_topic_placeholder():
 
     assert grade.score == 50
     assert "placeholder grade" in grade.feedback
+
+
+def test_grade_answer_without_memory_repo():
+    """Verify grading works without memory repository (backward compatibility)."""
+    orchestrator = TeacherOrchestrator(memory_repo=None)
+    answer = (
+        "Token limit constraints lead to truncation when the context window is exceeded,"
+        " which is critical for prompt design."
+    )
+
+    grade = orchestrator.grade_answer("tokens", answer)
+
+    assert grade.score == 85
+    assert "key concepts" in grade.feedback
+
+
+def test_grade_answer_persists_attempt():
+    """Verify grading saves attempt to memory repository."""
+    mock_repo = Mock()
+    orchestrator = TeacherOrchestrator(memory_repo=mock_repo)
+    answer = "Context window limits affect tokenization."
+
+    grade = orchestrator.grade_answer("tokens", answer)
+
+    assert grade.score == 65  # One keyword found
+    mock_repo.save_attempt.assert_called_once_with("tokens", answer, 65, grade.feedback)
+
+
+def test_grade_answer_tracks_weakness_low_score():
+    """Verify weakness is tracked when score < 70."""
+    mock_repo = Mock()
+    orchestrator = TeacherOrchestrator(memory_repo=mock_repo)
+    answer = "I don't know much about tokens."
+
+    grade = orchestrator.grade_answer("tokens", answer)
+
+    assert grade.score == 35  # Low score
+    mock_repo.save_attempt.assert_called_once()
+    mock_repo.increment_weakness.assert_called_once_with("tokens")
+
+
+def test_grade_answer_no_weakness_high_score():
+    """Verify weakness is NOT tracked when score >= 70."""
+    mock_repo = Mock()
+    orchestrator = TeacherOrchestrator(memory_repo=mock_repo)
+    answer = (
+        "Token limit constraints lead to truncation when the context window is exceeded,"
+        " which is critical for prompt design."
+    )
+
+    grade = orchestrator.grade_answer("tokens", answer)
+
+    assert grade.score == 85  # High score
+    mock_repo.save_attempt.assert_called_once()
+    mock_repo.increment_weakness.assert_not_called()

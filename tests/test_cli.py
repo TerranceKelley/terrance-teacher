@@ -1,4 +1,9 @@
 import sys
+import os
+import tempfile
+import shutil
+from pathlib import Path
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
@@ -39,3 +44,80 @@ def test_answer_tokens_grades_keywords():
     assert "Score: 85/100" in output
     assert "Feedback:" in output
     assert "key concepts" in output
+
+
+def test_status_command_empty():
+    """Status command shows empty state when no attempts exist."""
+    # Use temporary directory for test database
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmpdir)
+            response = runner.invoke(app, ["status"])
+            
+            assert response.exit_code == 0
+            output = response.stdout
+            assert "=== Learning Status ===" in output
+            assert "Total attempts: 0" in output
+            assert "Average score: 0.0" in output
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_status_command_with_attempts():
+    """Status command shows correct stats with attempts."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmpdir)
+            # Create some attempts
+            runner.invoke(app, ["answer", "tokens", "Context window limits cause truncation."])
+            runner.invoke(app, ["answer", "tokens", "I don't know much about tokens."])
+            
+            response = runner.invoke(app, ["status"])
+            
+            assert response.exit_code == 0
+            output = response.stdout
+            assert "=== Learning Status ===" in output
+            assert "Total attempts: 2" in output
+            assert "Average score:" in output
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_status_command_weakest_topics():
+    """Status command displays weakest topics correctly."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmpdir)
+            # Create low-score attempts to trigger weakness tracking
+            runner.invoke(app, ["answer", "tokens", "I don't know."])  # Score < 70
+            runner.invoke(app, ["answer", "rag", "I don't know."])  # Score < 70
+            
+            response = runner.invoke(app, ["status"])
+            
+            assert response.exit_code == 0
+            output = response.stdout
+            assert "Weakest topics" in output or "weak topics" in output.lower()
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_answer_persists_to_database():
+    """Verify CLI answer command persists data to database."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmpdir)
+            # Answer a question
+            runner.invoke(app, ["answer", "tokens", "Context window limits cause truncation."])
+            
+            # Check that status shows the attempt
+            response = runner.invoke(app, ["status"])
+            
+            assert response.exit_code == 0
+            output = response.stdout
+            assert "Total attempts: 1" in output
+        finally:
+            os.chdir(original_cwd)

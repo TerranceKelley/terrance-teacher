@@ -13,3 +13,9 @@ class Grade(BaseModel):
     score: int
     feedback: str
 
+
+class StatusSummary(BaseModel):
+    total_attempts: int
+    average_score: float
+    weakest_topics: list[tuple[str, int]]
+

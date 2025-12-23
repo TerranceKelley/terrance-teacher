@@ -1,6 +1,7 @@
 import sys
 import typer
 from terrance_teacher.core.orchestrator import TeacherOrchestrator
+from terrance_teacher.memory import MemoryRepository
 
 app = typer.Typer(
     help="Terrance Teacher — an agentic AI-powered personal teacher.",
@@ -30,7 +31,8 @@ def main(ctx: typer.Context) -> None:
         return
     
     topic = _get_topic_from_argv()
-    orch = TeacherOrchestrator()
+    memory_repo = MemoryRepository()
+    orch = TeacherOrchestrator(memory_repo=memory_repo)
     lesson = orch.generate_lesson(topic)
 
     typer.echo("\n=== Lesson ===\n")
@@ -51,7 +53,8 @@ def answer(
     topic: str = typer.Argument(..., help="Topic being answered (e.g., 'tokens')"),
     answer: str = typer.Argument(..., help="Your answer (wrap in quotes)"),
 ) -> None:
-    orch = TeacherOrchestrator()
+    memory_repo = MemoryRepository()
+    orch = TeacherOrchestrator(memory_repo=memory_repo)
     grade = orch.grade_answer(topic, answer)
 
     typer.echo("\n=== Grade ===\n")
@@ -59,16 +62,37 @@ def answer(
     typer.echo(f"Feedback: {grade.feedback}\n")
 
 
+@app.command()
+def status() -> None:
+    """Display learning progress statistics."""
+    memory_repo = MemoryRepository()
+    summary = memory_repo.get_status_summary()
+    
+    typer.echo("\n=== Learning Status ===\n")
+    typer.echo(f"Total attempts: {summary['total_attempts']}")
+    typer.echo(f"Average score: {summary['average_score']:.1f}")
+    
+    if summary['weakest_topics']:
+        typer.echo("\nWeakest topics (top 5):")
+        for topic, count in summary['weakest_topics']:
+            typer.echo(f"  - {topic}: {count}")
+    else:
+        typer.echo("\nNo weak topics tracked yet.")
+    
+    typer.echo()
+
+
 def cli_main():
     """Main entry point that handles both command and topic modes."""
     # Check if first arg is a known subcommand
-    if len(sys.argv) > 1 and sys.argv[1] == "answer":
+    if len(sys.argv) > 1 and sys.argv[1] in ("answer", "status"):
         # Let Typer handle the subcommand
         app()
     elif len(sys.argv) > 1:
         # First arg is a topic, handle it directly
         topic = sys.argv[1]
-        orch = TeacherOrchestrator()
+        memory_repo = MemoryRepository()
+        orch = TeacherOrchestrator(memory_repo=memory_repo)
         lesson = orch.generate_lesson(topic)
         
         typer.echo("\n=== Lesson ===\n")

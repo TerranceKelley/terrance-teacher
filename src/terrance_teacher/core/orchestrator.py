@@ -2,7 +2,8 @@ from terrance_teacher.core.models import Lesson, Grade
 
 
 class TeacherOrchestrator:
-    def __init__(self):
+    def __init__(self, memory_repo=None):
+        self.memory_repo = memory_repo
         self._lessons = {
             "tokens": Lesson(
                 topic="tokens",
@@ -100,14 +101,22 @@ class TeacherOrchestrator:
                     "when text exceeds limits, and how this constrains prompt engineering strategies."
                 )
             
-            return Grade(score=score, feedback=feedback)
+            grade = Grade(score=score, feedback=feedback)
+        else:
+            # Unknown topic fallback
+            grade = Grade(
+                score=50,
+                feedback=(
+                    f"Grading for '{topic}' is not yet implemented. This is a placeholder grade. "
+                    "In future versions, answers will be evaluated using LLM-based grading."
+                ),
+            )
         
-        # Unknown topic fallback
-        return Grade(
-            score=50,
-            feedback=(
-                f"Grading for '{topic}' is not yet implemented. This is a placeholder grade. "
-                "In future versions, answers will be evaluated using LLM-based grading."
-            ),
-        )
+        # Persist attempt if memory repository is available
+        if self.memory_repo:
+            self.memory_repo.save_attempt(topic, answer, grade.score, grade.feedback)
+            if grade.score < 70:
+                self.memory_repo.increment_weakness(topic)
+        
+        return grade
 
