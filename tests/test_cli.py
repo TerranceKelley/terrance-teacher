@@ -44,6 +44,23 @@ def test_answer_tokens_grades_keywords():
     assert "Score: 85/100" in output
     assert "Feedback:" in output
     assert "key concepts" in output
+    assert "Next:" in output
+
+
+def test_next_command_output_format():
+    """Verify 'teach next' command outputs correct format."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmpdir)
+            response = runner.invoke(app, ["next"])
+            
+            assert response.exit_code == 0
+            output = response.stdout
+            assert "Next recommended topic:" in output
+            assert "tokens" in output  # Default when no attempts
+        finally:
+            os.chdir(original_cwd)
 
 
 def test_status_command_empty():

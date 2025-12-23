@@ -58,4 +58,32 @@ class MemoryRepository:
             "average_score": average_score,
             "weakest_topics": weakest_topics,
         }
+    
+    def get_top_weak_topic(self) -> str | None:
+        """Get topic with highest weakness count, with alphabetical tie-breaker."""
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            "SELECT topic FROM weaknesses ORDER BY count DESC, topic ASC LIMIT 1"
+        )
+        row = cursor.fetchone()
+        
+        conn.close()
+        
+        return row[0] if row else None
+    
+    def get_last_attempt_topic(self) -> str | None:
+        """Get topic from most recent attempt."""
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            "SELECT topic FROM lesson_attempts ORDER BY created_at DESC LIMIT 1"
+        )
+        row = cursor.fetchone()
+        
+        conn.close()
+        
+        return row[0] if row else None
 

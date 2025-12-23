@@ -2,6 +2,15 @@ from terrance_teacher.core.models import Lesson, Grade
 
 
 class TeacherOrchestrator:
+    CURRICULUM = [
+        "tokens",
+        "temperature",
+        "prompting",
+        "rag",
+        "hallucinations",
+        "agents",
+    ]
+    
     def __init__(self, memory_repo=None):
         self.memory_repo = memory_repo
         self._lessons = {
@@ -119,4 +128,29 @@ class TeacherOrchestrator:
                 self.memory_repo.increment_weakness(topic)
         
         return grade
+    
+    def recommend_next_topic(self) -> str:
+        """Recommend the next topic based on weaknesses, attempts, or default."""
+        # If no memory repository, return default
+        if self.memory_repo is None:
+            return "tokens"
+        
+        # Priority 1: Weaknesses
+        weak_topic = self.memory_repo.get_top_weak_topic()
+        if weak_topic is not None:
+            return weak_topic
+        
+        # Priority 2: Next topic after last attempt
+        last_topic = self.memory_repo.get_last_attempt_topic()
+        if last_topic is not None:
+            try:
+                last_index = self.CURRICULUM.index(last_topic.lower())
+                next_index = (last_index + 1) % len(self.CURRICULUM)
+                return self.CURRICULUM[next_index]
+            except ValueError:
+                # Topic not in curriculum, return default
+                return "tokens"
+        
+        # Priority 3: No attempts, return default
+        return "tokens"
 

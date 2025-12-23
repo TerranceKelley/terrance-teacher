@@ -60,6 +60,9 @@ def answer(
     typer.echo("\n=== Grade ===\n")
     typer.echo(f"Score: {grade.score}/100")
     typer.echo(f"Feedback: {grade.feedback}\n")
+    
+    next_topic = orch.recommend_next_topic()
+    typer.echo(f"Next: {next_topic}\n")
 
 
 @app.command()
@@ -82,10 +85,19 @@ def status() -> None:
     typer.echo()
 
 
+@app.command()
+def next() -> None:
+    """Display the next recommended topic."""
+    memory_repo = MemoryRepository()
+    orch = TeacherOrchestrator(memory_repo=memory_repo)
+    topic = orch.recommend_next_topic()
+    typer.echo(f"Next recommended topic: {topic}\n")
+
+
 def cli_main():
     """Main entry point that handles both command and topic modes."""
     # Check if first arg is a known subcommand
-    if len(sys.argv) > 1 and sys.argv[1] in ("answer", "status"):
+    if len(sys.argv) > 1 and sys.argv[1] in ("answer", "status", "next"):
         # Let Typer handle the subcommand
         app()
     elif len(sys.argv) > 1:

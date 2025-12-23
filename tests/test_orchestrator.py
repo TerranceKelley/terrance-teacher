@@ -99,3 +99,71 @@ def test_grade_answer_no_weakness_high_score():
     assert grade.score == 85  # High score
     mock_repo.save_attempt.assert_called_once()
     mock_repo.increment_weakness.assert_not_called()
+
+
+def test_recommend_next_topic_no_attempts():
+    """Recommend 'tokens' when no attempts exist."""
+    mock_repo = Mock()
+    mock_repo.get_top_weak_topic.return_value = None
+    mock_repo.get_last_attempt_topic.return_value = None
+    
+    orchestrator = TeacherOrchestrator(memory_repo=mock_repo)
+    topic = orchestrator.recommend_next_topic()
+    
+    assert topic == "tokens"
+
+
+def test_recommend_next_topic_with_attempts_no_weaknesses():
+    """Recommend next topic in curriculum after last attempt."""
+    mock_repo = Mock()
+    mock_repo.get_top_weak_topic.return_value = None
+    mock_repo.get_last_attempt_topic.return_value = "tokens"
+    
+    orchestrator = TeacherOrchestrator(memory_repo=mock_repo)
+    topic = orchestrator.recommend_next_topic()
+    
+    assert topic == "temperature"
+
+
+def test_recommend_next_topic_wraps_to_first():
+    """Recommend first topic when last attempt was final topic."""
+    mock_repo = Mock()
+    mock_repo.get_top_weak_topic.return_value = None
+    mock_repo.get_last_attempt_topic.return_value = "agents"
+    
+    orchestrator = TeacherOrchestrator(memory_repo=mock_repo)
+    topic = orchestrator.recommend_next_topic()
+    
+    assert topic == "tokens"
+
+
+def test_recommend_next_topic_with_weaknesses():
+    """Prioritize weaknesses over curriculum progression."""
+    mock_repo = Mock()
+    mock_repo.get_top_weak_topic.return_value = "rag"
+    mock_repo.get_last_attempt_topic.return_value = "tokens"
+    
+    orchestrator = TeacherOrchestrator(memory_repo=mock_repo)
+    topic = orchestrator.recommend_next_topic()
+    
+    assert topic == "rag"
+    mock_repo.get_last_attempt_topic.assert_not_called()
+
+
+def test_recommend_next_topic_alphabetical_tiebreaker():
+    """Verify alphabetical tie-breaker for weaknesses."""
+    mock_repo = Mock()
+    mock_repo.get_top_weak_topic.return_value = "prompting"  # Alphabetically first among ties
+    
+    orchestrator = TeacherOrchestrator(memory_repo=mock_repo)
+    topic = orchestrator.recommend_next_topic()
+    
+    assert topic == "prompting"
+
+
+def test_recommend_next_topic_no_memory_repo():
+    """Return default when no memory repository."""
+    orchestrator = TeacherOrchestrator(memory_repo=None)
+    topic = orchestrator.recommend_next_topic()
+    
+    assert topic == "tokens"

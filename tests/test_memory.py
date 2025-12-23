@@ -176,3 +176,91 @@ def test_get_status_summary_weakest_topics():
         assert weakest[1][0] == "temperature"
         assert weakest[1][1] == 2
 
+
+def test_get_top_weak_topic():
+    """Get topic with highest weakness count, alphabetical tie-breaker."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_db = os.path.join(tmpdir, "test.db")
+        
+        def mock_get_connection():
+            return sqlite3.connect(test_db)
+        
+        def mock_ensure_data_dir():
+            pass
+        
+        with patch("terrance_teacher.memory.repo.get_connection", side_effect=mock_get_connection):
+            with patch("terrance_teacher.memory.db.get_connection", side_effect=mock_get_connection):
+                with patch("terrance_teacher.memory.db.ensure_data_dir", side_effect=mock_ensure_data_dir):
+                    repo = MemoryRepository()
+                    # Create weaknesses with same count to test alphabetical tie-breaker
+                    repo.increment_weakness("rag")  # count = 1
+                    repo.increment_weakness("prompting")  # count = 1
+                    repo.increment_weakness("tokens")  # count = 1
+                    # "prompting" should win alphabetically
+                    topic = repo.get_top_weak_topic()
+        
+        assert topic == "prompting"  # Alphabetically first
+
+
+def test_get_top_weak_topic_none():
+    """Return None when no weaknesses exist."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_db = os.path.join(tmpdir, "test.db")
+        
+        def mock_get_connection():
+            return sqlite3.connect(test_db)
+        
+        def mock_ensure_data_dir():
+            pass
+        
+        with patch("terrance_teacher.memory.repo.get_connection", side_effect=mock_get_connection):
+            with patch("terrance_teacher.memory.db.get_connection", side_effect=mock_get_connection):
+                with patch("terrance_teacher.memory.db.ensure_data_dir", side_effect=mock_ensure_data_dir):
+                    repo = MemoryRepository()
+                    topic = repo.get_top_weak_topic()
+        
+        assert topic is None
+
+
+def test_get_last_attempt_topic():
+    """Get topic from most recent attempt."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_db = os.path.join(tmpdir, "test.db")
+        
+        def mock_get_connection():
+            return sqlite3.connect(test_db)
+        
+        def mock_ensure_data_dir():
+            pass
+        
+        with patch("terrance_teacher.memory.repo.get_connection", side_effect=mock_get_connection):
+            with patch("terrance_teacher.memory.db.get_connection", side_effect=mock_get_connection):
+                with patch("terrance_teacher.memory.db.ensure_data_dir", side_effect=mock_ensure_data_dir):
+                    repo = MemoryRepository()
+                    repo.save_attempt("tokens", "answer1", 80, "feedback1")
+                    repo.save_attempt("temperature", "answer2", 70, "feedback2")
+                    # Most recent should be "temperature"
+                    topic = repo.get_last_attempt_topic()
+        
+        assert topic == "temperature"
+
+
+def test_get_last_attempt_topic_none():
+    """Return None when no attempts exist."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_db = os.path.join(tmpdir, "test.db")
+        
+        def mock_get_connection():
+            return sqlite3.connect(test_db)
+        
+        def mock_ensure_data_dir():
+            pass
+        
+        with patch("terrance_teacher.memory.repo.get_connection", side_effect=mock_get_connection):
+            with patch("terrance_teacher.memory.db.get_connection", side_effect=mock_get_connection):
+                with patch("terrance_teacher.memory.db.ensure_data_dir", side_effect=mock_ensure_data_dir):
+                    repo = MemoryRepository()
+                    topic = repo.get_last_attempt_topic()
+        
+        assert topic is None
+
