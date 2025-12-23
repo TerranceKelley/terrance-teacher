@@ -12,6 +12,10 @@ dependencies = [
   "rich>=13.0"
 ]
 
+# Run tests with: PYTHONPATH=src pytest
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
 [project.scripts]
 teach = "terrance_teacher.cli:cli_main"
 
