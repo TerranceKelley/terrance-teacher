@@ -28,7 +28,9 @@ def init_db() -> None:
             answer TEXT NOT NULL,
             score INTEGER NOT NULL,
             feedback TEXT NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            llm_feedback TEXT,
+            llm_score INTEGER
         )
     """)
     
@@ -38,6 +40,16 @@ def init_db() -> None:
             count INTEGER NOT NULL DEFAULT 1
         )
     """)
+    
+    # Backward-compatible schema upgrade: add llm columns if missing
+    cursor.execute("PRAGMA table_info(lesson_attempts)")
+    columns = [row[1] for row in cursor.fetchall()]
+    
+    if "llm_feedback" not in columns:
+        cursor.execute("ALTER TABLE lesson_attempts ADD COLUMN llm_feedback TEXT")
+    
+    if "llm_score" not in columns:
+        cursor.execute("ALTER TABLE lesson_attempts ADD COLUMN llm_score INTEGER")
     
     conn.commit()
     conn.close()

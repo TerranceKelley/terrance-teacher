@@ -45,6 +45,7 @@ def test_answer_tokens_grades_keywords():
     assert "Feedback:" in output
     assert "key concepts" in output
     assert "Next:" in output
+    # LLM Feedback section may or may not appear (depends on Ollama availability)
 
 
 def test_next_command_output_format():
@@ -138,3 +139,57 @@ def test_answer_persists_to_database():
             assert "Total attempts: 1" in output
         finally:
             os.chdir(original_cwd)
+
+
+def test_exam_command_grades_and_prints_exam_header():
+    """Verify exam command shows exam header and grades answer."""
+    response = runner.invoke(
+        app,
+        [
+            "exam",
+            "tokens",
+            "--answer",
+            "context window limit and truncation",
+        ],
+    )
+    
+    assert response.exit_code == 0
+    output = response.stdout
+    assert "=== Exam: tokens ===" in output
+    assert "Q:" in output
+    assert "Task:" in output
+    assert "=== Grade ===" in output
+    assert "Score:" in output
+    assert "Next:" in output
+
+
+def test_exam_command_reveal_flag_prints_lesson_reveal():
+    """Verify exam command with --reveal flag shows lesson after grading."""
+    response = runner.invoke(
+        app,
+        [
+            "exam",
+            "tokens",
+            "--answer",
+            "context window causes truncation",
+            "--reveal",
+        ],
+    )
+    
+    assert response.exit_code == 0
+    output = response.stdout
+    assert "=== Exam: tokens ===" in output
+    assert "=== Grade ===" in output
+    assert "=== Lesson Reveal ===" in output
+    assert "Tokens are the fundamental units" in output or "explanation" in output.lower()
+    assert "Example" in output or "example" in output.lower()
+
+
+def test_exam_is_registered_subcommand():
+    """Verify exam is treated as a subcommand, not a topic."""
+    # Test that exam --help works (proves it's a registered command)
+    response = runner.invoke(app, ["exam", "--help"])
+    
+    assert response.exit_code == 0
+    # Should show exam command help, not treat "exam" as a topic
+    assert "Topic to be tested on" in response.stdout or "exam" in response.stdout.lower()

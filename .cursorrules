@@ -1,30 +1,33 @@
 # .cursorrules — Terrance Teacher
-# Goal: Keep changes small, deterministic, and aligned with the v1 architecture.
+# Goal: Keep changes small, deterministic, and aligned with the stable architecture.
 
 ## Project intent
-Terrance Teacher is a local-first, CLI-driven “AI teacher” that generates lessons, asks questions, assigns tasks,
-grades answers, and stores progress. Start simple and evolve iteratively.
+Terrance Teacher is a local-first, CLI-driven "AI teacher" that generates lessons, asks questions, assigns tasks,
+grades answers, and stores progress. Designed for experienced engineers learning LLM engineering and agentic AI systems.
 
 ## Non-negotiables
-- Do NOT redesign the architecture.
+- Do NOT redesign the architecture (it is stable and proven).
 - Do NOT introduce new frameworks (FastAPI, Django, LangChain, etc.) unless explicitly requested.
 - Do NOT rename modules, packages, or commands without asking.
 - Prefer boring, readable Python over clever patterns.
+- Keep deterministic logic deterministic (grading, recommendations).
 
-## Tech choices (v1)
+## Tech choices (current)
 - Language: Python 3.11+
 - CLI: Typer
 - Output formatting: Rich (optional but ok)
 - Schemas: Pydantic
-- Memory: SQLite (local file in /data or similar)
-- LLM: Ollama first; OpenAI adapter later (behind an interface)
+- Memory: SQLite (data/teacher.db)
+- LLM: Ollama (local HTTP API via urllib.request)
+- HTTP: Standard library only (urllib.request)
 
-## Repository structure (must keep)
+## Repository structure (stable)
 - src/terrance_teacher/cli.py
 - src/terrance_teacher/core/orchestrator.py
 - src/terrance_teacher/core/models.py
-- src/terrance_teacher/llm/* (adapter interface + implementations)
-- src/terrance_teacher/memory/* (sqlite + repo layer)
+- src/terrance_teacher/llm/ollama.py (OllamaClient)
+- src/terrance_teacher/memory/db.py (SQLite setup)
+- src/terrance_teacher/memory/repo.py (MemoryRepository)
 - tests/*
 
 If a change requires new files, add them ONLY under the directories above.
@@ -33,46 +36,202 @@ If a change requires new files, add them ONLY under the directories above.
 - Keep functions small and testable.
 - Prefer synchronous code (no async) unless required.
 - Add type hints for public functions/methods.
-- Raise clear exceptions; don’t swallow errors silently.
-- Use dataclasses only if helpful; prefer Pydantic for structured LLM outputs.
+- Raise clear exceptions; don't swallow errors silently.
+- Use Pydantic for structured LLM outputs and data models.
 
-## Lesson generation contract (v1)
-TeacherOrchestrator.generate_lesson(topic: str) returns a Lesson object:
+## Current implementation status
+
+### ✅ v1 — Teaching Scaffold (DONE)
+- CLI command: `teach <topic>`
+- Hardcoded lessons
+- Lesson contract: topic, explanation, example, question, task
+
+### ✅ v1.1 — Deterministic Grading (DONE)
+- CLI command: `teach answer <topic> "<answer>"`
+- Rule-based grading (0-100)
+- Keyword-driven evaluation
+- Fully deterministic
+
+### ✅ v2 — Persistent Memory (DONE)
+- SQLite database: data/teacher.db
+- Tables: lesson_attempts, weaknesses
+- MemoryRepository class
+- CLI command: `teach status`
+- Tracks attempts, scores, weak topics
+
+### ✅ v3 — Adaptive Curriculum (DONE)
+- Static curriculum: tokens → temperature → prompting → rag → hallucinations → agents
+- Deterministic recommendation: weaknesses → next topic → default
+- CLI command: `teach next`
+- Shows "Next:" after grading
+
+### ✅ v4-A — Ollama-Backed Lesson Generation (DONE)
+- OllamaClient class (urllib.request, standard library)
+- Default: http://localhost:11434, model llama3.2
+- Structured JSON lesson output
+- Graceful fallback when Ollama unavailable
+- Hardcoded "tokens" lesson preserved
+- No changes to grading, memory, or recommendations
+
+### ✅ v4-B — Ollama-Backed Grading (DONE)
+- Optional Ollama qualitative feedback for grading
+- Deterministic grading remains source of truth (unchanged)
+- LLM feedback stored in SQLite (llm_feedback, llm_score columns)
+- Backward-compatible DB schema upgrade (PRAGMA + ALTER TABLE)
+- CLI displays LLM feedback when available
+- Graceful fallback when Ollama unavailable
+- No changes to deterministic grading logic
+- No changes to recommendation logic
+
+### ✅ v4-C — Adaptive Difficulty for Fallback Lessons (DONE)
+- Deterministic difficulty tiers for fallback/scaffold lessons only
+- Difficulty based on weakness count: Beginner (≤1), Intermediate (2-3), Advanced (≥4)
+- Applies ONLY when Ollama unavailable or returns invalid JSON
+- Ollama-generated lessons remain completely unchanged
+- Hardcoded "tokens" lesson unchanged
+- No changes to CLI contract, grading, recommendation, or DB schema
+
+### ✅ v5 — Teacher and Examiner Split (DONE)
+- Teacher class handles lesson generation (hardcoded, Ollama, fallback)
+- Examiner class handles grading (deterministic + optional Ollama feedback)
+- Orchestrator coordinates Teacher/Examiner and persists results
+- No CLI contract changes
+- Deterministic grading remains source of truth
+- Ollama remains best-effort with graceful fallback
+- Minimal extraction; no unrelated refactoring
+
+### ✅ v6-A — Learning Analytics (DONE)
+- Adds `teach history` command (shows last N attempts, default 10)
+- Adds `teach topic <topic>` command (shows per-topic statistics)
+- Uses MemoryRepository only; no DB schema changes
+- Deterministic ordering: created_at DESC, id DESC
+- No new dependencies
+- CLI preserves default `teach <topic>` behavior
+
+### ✅ v6-B — Deterministic Grading Rubrics (DONE)
+- Deterministic grading supports all curriculum topics (tokens, temperature, prompting, rag, hallucinations, agents)
+- Keyword-based rubric per topic
+- Scoring bands: High (80-100), Medium (50-79), Low (20-49), Very Low (0-19)
+- Deterministic grading remains source of truth
+- Optional Ollama feedback unchanged
+- No CLI/DB changes
+
+### ✅ v6-C — Exam Mode (DONE)
+- Adds `teach exam <topic>` command
+- Shows question + task first, then grades and persists like `teach answer`
+- Supports non-interactive mode via `--answer` flag
+- Supports optional lesson reveal via `--reveal` flag
+- No DB changes
+- No changes to existing commands
+- "exam" added to known subcommands list
+
+## Contracts (stable, do not change)
+
+### Lesson generation contract
+TeacherOrchestrator.generate_lesson(topic: str) -> Lesson:
 - topic: str
 - explanation: str
 - example: str
 - question: str
 - task: str
 
-Do not change this contract without explicit instruction.
+Behavior:
+- If topic == "tokens": return hardcoded lesson
+- Try Ollama generation first
+- Fall back to scaffold lesson on any error
+- Never crash
 
-## LLM adapter contract (when added)
-Create an interface LLMClient with one method:
-- generate(prompt: str) -> str
+### Grading contract
+TeacherOrchestrator.grade_answer(topic: str, answer: str) -> Grade:
+- score: int (0-100) - DETERMINISTIC (source of truth)
+- feedback: str - DETERMINISTIC (source of truth)
 
-Ollama implementation must call local Ollama HTTP API.
-OpenAI implementation is optional and must be isolated behind the interface.
+Behavior:
+- Deterministic keyword-based logic (UNCHANGED since v1.1)
+- Attempts optional Ollama qualitative feedback (best-effort)
+- Persists to memory if memory_repo provided
+- Stores both deterministic and optional LLM feedback
+- Tracks weaknesses if score < 70 (based on deterministic score)
+- LLM feedback is supplementary only, never replaces deterministic
 
-## Memory contract (when added)
-- Store attempts and feedback in SQLite.
-- Keep schema minimal at first.
-- Do not introduce external DBs.
+### Recommendation contract
+TeacherOrchestrator.recommend_next_topic() -> str:
+- Priority 1: Weakest topic (highest count, alphabetical tie-breaker)
+- Priority 2: Next topic after last attempt (curriculum progression)
+- Priority 3: Default to "tokens"
+- Unchanged since v3
+
+### Memory contract
+MemoryRepository methods:
+- save_attempt(topic, answer, score, feedback)
+- increment_weakness(topic)
+- get_status_summary() -> dict
+- get_top_weak_topic() -> str | None
+- get_last_attempt_topic() -> str | None
+
+Database schema (stable):
+- lesson_attempts: id, topic, answer, score, feedback, created_at, llm_feedback (TEXT NULL), llm_score (INTEGER NULL)
+- weaknesses: topic (PK), count
+
+Schema upgrade:
+- llm_feedback and llm_score added in v4-B
+- Backward compatible: existing DBs upgraded via PRAGMA + ALTER TABLE
+- Columns are nullable (NULL when Ollama unavailable)
+
+### LLM contract
+OllamaClient.generate(prompt: str) -> str | None:
+- Returns response text on success
+- Returns None on any error (connection, HTTP, JSON, timeout)
+- Never raises exceptions
+- Uses urllib.request (standard library)
+- Used for both lesson generation and grading feedback
+
+## CLI commands (stable)
+- `teach <topic>` - Generate and display lesson
+- `teach answer <topic> "<answer>"` - Grade answer and show recommendation
+- `teach status` - Show learning progress statistics
+- `teach next` - Show next recommended topic
+- `teach history [--limit N]` - Show recent attempt history (v6-A)
+- `teach topic <topic>` - Show per-topic statistics (v6-A)
+- `teach exam <topic> [--answer TEXT] [--reveal]` - Quiz mode: question + task, grade, optionally reveal lesson (v6-C)
+
+Do not change command names or argument order.
 
 ## How to respond when coding
 When asked to implement something:
 1) Show the minimal file changes required.
 2) Provide code that runs with `pip install -e .` and `teach <topic>`.
-3) Avoid “extra nice-to-haves” unless requested.
+3) Avoid "extra nice-to-haves" unless requested.
+4) Maintain backward compatibility.
+5) Keep tests passing.
 
 ## What NOT to do
 - Do not add CI, docker, k8s, or cloud deployment yet.
-- Do not add multi-agent orchestration yet.
+- Do not add multi-agent orchestration yet (v5 planned).
 - Do not add vector DB / RAG yet.
 - Do not add complicated configuration systems.
+- Do not change grading to be non-deterministic.
+- Do not break existing CLI commands.
 
 ## Default assumptions
 - Repo is editable install (`pip install -e .`)
 - CLI entrypoint is `teach` from pyproject.toml scripts
 - Local dev is macOS/Linux
+- Ollama may or may not be running (graceful fallback required)
+- Database is created automatically in data/ directory
+
+## Testing requirements
+- All tests must pass before merging.
+- Use unittest.mock for external dependencies.
+- Do not require running Ollama service in tests.
+- Use temporary databases for memory tests.
+- Keep tests deterministic and isolated.
+
+## Planned (not yet implemented)
+- v5: Multi-agent split (Teacher vs Examiner)
+- v6: Adaptive depth (pedagogical intelligence)
+- v7: Cloud/packaging/distribution
+
+Do not implement these unless explicitly requested.
 
 # End

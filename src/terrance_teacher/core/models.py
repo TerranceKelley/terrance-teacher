@@ -19,3 +19,8 @@ class StatusSummary(BaseModel):
     average_score: float
     weakest_topics: list[tuple[str, int]]
 
+
+class LlmGrade(BaseModel):
+    feedback: str
+    score: int | None = None
+
